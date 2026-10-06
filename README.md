@@ -1,6 +1,6 @@
 # PathBridge API Gateway
 
-Punto de entrada público para los microservicios de PathBridge. El gateway valida los JWT en las rutas protegidas y reenvía las solicitudes a Identity Service, Job Discovery Service y Gap Analysis Service. Para las solicitudes de empleos e informes de brechas agrega la identidad validada en el encabezado `X-User-Id` (el nombre puede configurarse con `GATEWAY_USER_ID_HEADER`).
+Es el punto de entrada público para los microservicios de PathBridge. El gateway valida los JWT en las rutas protegidas y reenvía las solicitudes a Identity Service, Job Discovery Service y Gap Analysis Service. Para las solicitudes de empleos e informes de brechas agrega la identidad validada en el encabezado `X-User-Id` (el nombre puede configurarse con `GATEWAY_USER_ID_HEADER`).
 
 Ejecuta el sistema completo desde la raíz con `docker compose up --build`. Si el gateway está publicado en el puerto `8080`, la base URL es `http://localhost:8080`. La especificación OpenAPI interactiva queda en `http://localhost:8080/docs`.
 
