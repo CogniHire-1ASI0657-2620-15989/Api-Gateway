@@ -3,7 +3,7 @@ from fastapi.responses import Response
 
 from app.config import get_settings
 from app.proxy import forward_request
-from app.schemas import ChangePasswordRequest, SkillRequest, UpdateProfileRequest
+from app.schemas import ChangePasswordRequest, EducationRequest, SkillRequest, UpdateProfileRequest
 from app.security import get_current_user_id
 
 
@@ -42,3 +42,18 @@ async def update_skill(skill_type: str, skill_name: str, _: SkillRequest, reques
 @router.delete("/me/skills/{skill_type}/{skill_name}")
 async def remove_skill(skill_type: str, skill_name: str, request: Request, _: int = Depends(get_current_user_id)) -> Response:
     return await forward_request(request, _identity_url(), f"/api/v1/profile/me/skills/{skill_type}/{skill_name}")
+
+
+@router.post("/me/education")
+async def add_education(_: EducationRequest, request: Request, __: int = Depends(get_current_user_id)) -> Response:
+    return await forward_request(request, _identity_url(), "/api/v1/profile/me/education")
+
+
+@router.put("/me/education/{education_id}")
+async def update_education(education_id: str, _: EducationRequest, request: Request, __: int = Depends(get_current_user_id)) -> Response:
+    return await forward_request(request, _identity_url(), f"/api/v1/profile/me/education/{education_id}")
+
+
+@router.delete("/me/education/{education_id}")
+async def remove_education(education_id: str, request: Request, _: int = Depends(get_current_user_id)) -> Response:
+    return await forward_request(request, _identity_url(), f"/api/v1/profile/me/education/{education_id}")

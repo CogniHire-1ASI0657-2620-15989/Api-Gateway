@@ -223,6 +223,20 @@ Respuesta de éxito esperada: `200 OK`. La forma depende de Identity Service.
 
 Request: no requiere cuerpo. `skill_type` y `skill_name` forman parte de la ruta.
 
+### Gestionar formación académica
+
+`POST /api/v1/profile/me/education` (requiere autenticación)
+
+Agrega una formación sin reemplazar las demás. El cuerpo admite `degree`, `institution`, `field_of_study`, `start_year` y `end_year`. La respuesta contiene el perfil actualizado y el `id` asignado a la nueva formación.
+
+`PUT /api/v1/profile/me/education/{education_id}` (requiere autenticación)
+
+Actualiza una formación usando el `id` devuelto por el perfil.
+
+`DELETE /api/v1/profile/me/education/{education_id}` (requiere autenticación)
+
+Elimina una formación del perfil.
+
 Respuesta de éxito esperada: `200 OK` según el status predeterminado del gateway; el status real y cuerpo devueltos por Identity Service se reenvían sin cambios.
 
 ## Job Discovery Service
