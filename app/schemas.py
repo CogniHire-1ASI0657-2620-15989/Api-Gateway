@@ -78,3 +78,7 @@ class ChangePasswordRequest(BaseModel):
 
 class GenerateGapReportRequest(BaseModel):
     job_id: int = Field(gt=0)
+
+
+class GenerateLearningPathRequest(BaseModel):
+    job_id: int = Field(gt=0)
