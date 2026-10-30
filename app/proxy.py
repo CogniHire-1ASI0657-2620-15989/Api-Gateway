@@ -29,7 +29,7 @@ async def forward_request(
     extra_headers: Mapping[str, str] | None = None,
 ) -> Response:
     """Forward one public request while preventing client identity-header spoofing."""
-    protected_headers = {"x-user-id", "x-internal-api-key"}
+    protected_headers = {"x-user-id", "x-internal-api-key", "accept-encoding"}
     if extra_headers:
         protected_headers.update(name.lower() for name in extra_headers)
     headers = {
@@ -40,6 +40,9 @@ async def forward_request(
     if extra_headers:
         headers.update(extra_headers)
     headers["X-Internal-Api-Key"] = get_settings().internal_api_key
+    # Render can compress calls that traverse its public edge. Requesting the
+    # identity encoding prevents a compressed body from being relayed as JSON.
+    headers["Accept-Encoding"] = "identity"
 
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
