@@ -12,6 +12,7 @@ class Settings:
     jwt_secret_key: str
     jwt_issuer: str
     jwt_audience: str
+    internal_api_key: str
     gateway_user_id_header: str
     cors_origins: list[str]
 
@@ -26,6 +27,7 @@ def get_settings() -> Settings:
         "JWT_SECRET_KEY": os.getenv("JWT_SECRET_KEY"),
         "JWT_ISSUER": os.getenv("JWT_ISSUER"),
         "JWT_AUDIENCE": os.getenv("JWT_AUDIENCE"),
+        "INTERNAL_API_KEY": os.getenv("INTERNAL_API_KEY"),
     }
     missing = [name for name, value in required.items() if not value or not value.strip()]
     if missing:
@@ -40,6 +42,7 @@ def get_settings() -> Settings:
         jwt_secret_key=required["JWT_SECRET_KEY"],
         jwt_issuer=required["JWT_ISSUER"],
         jwt_audience=required["JWT_AUDIENCE"],
+        internal_api_key=required["INTERNAL_API_KEY"],
         gateway_user_id_header=os.getenv("GATEWAY_USER_ID_HEADER", "X-User-Id").strip(),
         cors_origins=origins,
     )

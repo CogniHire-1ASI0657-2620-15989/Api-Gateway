@@ -4,6 +4,8 @@ import httpx
 from fastapi import HTTPException, Request, status
 from fastapi.responses import Response
 
+from app.config import get_settings
+
 
 _HOP_BY_HOP_HEADERS = {
     "connection",
@@ -27,7 +29,7 @@ async def forward_request(
     extra_headers: Mapping[str, str] | None = None,
 ) -> Response:
     """Forward one public request while preventing client identity-header spoofing."""
-    protected_headers = {"x-user-id"}
+    protected_headers = {"x-user-id", "x-internal-api-key"}
     if extra_headers:
         protected_headers.update(name.lower() for name in extra_headers)
     headers = {
@@ -37,9 +39,10 @@ async def forward_request(
     }
     if extra_headers:
         headers.update(extra_headers)
+    headers["X-Internal-Api-Key"] = get_settings().internal_api_key
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
             upstream = await client.request(
                 request.method,
                 f"{base_url}{path}",
