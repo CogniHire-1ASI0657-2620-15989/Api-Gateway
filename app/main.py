@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routes import auth, certificates, gap_reports, jobs, learning_paths, profile
+from app.routes import auth, certificates, gap_reports, interview_sessions, jobs, learning_paths, profile
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.include_router(jobs.router)
 app.include_router(gap_reports.router)
 app.include_router(learning_paths.router)
 app.include_router(certificates.router)
+app.include_router(interview_sessions.router)
 
 
 @app.get("/health", tags=["Health"])

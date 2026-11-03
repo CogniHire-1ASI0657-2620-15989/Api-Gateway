@@ -81,4 +81,17 @@ class GenerateGapReportRequest(BaseModel):
 
 
 class GenerateLearningPathRequest(BaseModel):
+    job_id: int = Field(
+        gt=0,
+        examples=[1],
+        description="ID de un empleo devuelto por la búsqueda de empleos.",
+    )
+
+
+class StartInterviewRequest(BaseModel):
     job_id: int = Field(gt=0)
+    mode: Literal["technical", "behavioral", "mixed"] = "mixed"
+
+
+class SubmitInterviewResponseRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=10_000)

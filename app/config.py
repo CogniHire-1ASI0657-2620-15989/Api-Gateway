@@ -9,6 +9,7 @@ class Settings:
     job_discovery_service_url: str
     gap_analysis_service_url: str
     learning_pathway_service_url: str
+    interview_coach_service_url: str
     jwt_secret_key: str
     jwt_issuer: str
     jwt_audience: str
@@ -24,6 +25,7 @@ def get_settings() -> Settings:
         "JOB_DISCOVERY_SERVICE_URL": os.getenv("JOB_DISCOVERY_SERVICE_URL"),
         "GAP_ANALYSIS_SERVICE_URL": os.getenv("GAP_ANALYSIS_SERVICE_URL"),
         "LEARNING_PATHWAY_SERVICE_URL": os.getenv("LEARNING_PATHWAY_SERVICE_URL"),
+        "INTERVIEW_COACH_SERVICE_URL": os.getenv("INTERVIEW_COACH_SERVICE_URL"),
         "JWT_SECRET_KEY": os.getenv("JWT_SECRET_KEY"),
         "JWT_ISSUER": os.getenv("JWT_ISSUER"),
         "JWT_AUDIENCE": os.getenv("JWT_AUDIENCE"),
@@ -39,6 +41,7 @@ def get_settings() -> Settings:
         job_discovery_service_url=required["JOB_DISCOVERY_SERVICE_URL"].rstrip("/"),
         gap_analysis_service_url=required["GAP_ANALYSIS_SERVICE_URL"].rstrip("/"),
         learning_pathway_service_url=required["LEARNING_PATHWAY_SERVICE_URL"].rstrip("/"),
+        interview_coach_service_url=required["INTERVIEW_COACH_SERVICE_URL"].rstrip("/"),
         jwt_secret_key=required["JWT_SECRET_KEY"],
         jwt_issuer=required["JWT_ISSUER"],
         jwt_audience=required["JWT_AUDIENCE"],

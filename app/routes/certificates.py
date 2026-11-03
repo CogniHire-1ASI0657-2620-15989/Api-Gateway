@@ -8,14 +8,59 @@ from app.security import get_current_user_id
 
 router = APIRouter(prefix="/api/v1/certificates", tags=["Certificates"])
 
+_CERTIFICATE_UPLOAD_REQUEST_BODY = {
+    "required": True,
+    "content": {
+        "multipart/form-data": {
+            "schema": {
+                "type": "object",
+                "required": ["learning_path_id", "skill_name", "file"],
+                "properties": {
+                    "learning_path_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "example": 1,
+                        "description": "ID de una ruta de aprendizaje existente del usuario.",
+                    },
+                    "skill_name": {
+                        "type": "string",
+                        "example": "SQL",
+                        "description": "Habilidad pendiente incluida en esa ruta.",
+                    },
+                    "provider": {
+                        "type": "string",
+                        "example": "Udemy",
+                        "description": "Proveedor del certificado; opcional.",
+                    },
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "description": "Certificado PDF, PNG o JPEG de hasta 5 MB.",
+                    },
+                },
+            }
+        }
+    },
+}
+
 
 def _identity_header(user_id: int) -> dict[str, str]:
     settings = get_settings()
     return {settings.gateway_user_id_header: str(user_id)}
 
 
-@router.post("")
+@router.post("", openapi_extra={"requestBody": _CERTIFICATE_UPLOAD_REQUEST_BODY})
 async def upload_certificate(request: Request, user_id: int = Depends(get_current_user_id)) -> Response:
+    return await forward_request(
+        request,
+        get_settings().learning_pathway_service_url,
+        "/api/v1/certificates",
+        _identity_header(user_id),
+    )
+
+
+@router.get("")
+async def list_certificates(request: Request, user_id: int = Depends(get_current_user_id)) -> Response:
     return await forward_request(
         request,
         get_settings().learning_pathway_service_url,
