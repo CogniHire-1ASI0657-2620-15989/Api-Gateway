@@ -3,7 +3,7 @@ from fastapi.responses import Response
 
 from app.config import get_settings
 from app.proxy import forward_request
-from app.schemas import ChangePasswordRequest, EducationRequest, SkillRequest, UpdateProfileRequest
+from app.schemas import ChangePasswordRequest, EducationRequest, ExperienceInputRequest, SkillRequest, UpdateProfileRequest
 from app.security import get_current_user_id
 
 
@@ -42,6 +42,11 @@ async def update_skill(skill_type: str, skill_name: str, _: SkillRequest, reques
 @router.delete("/me/skills/{skill_type}/{skill_name}")
 async def remove_skill(skill_type: str, skill_name: str, request: Request, _: int = Depends(get_current_user_id)) -> Response:
     return await forward_request(request, _identity_url(), f"/api/v1/profile/me/skills/{skill_type}/{skill_name}")
+
+
+@router.post("/me/experience", status_code=201)
+async def add_experience(_: ExperienceInputRequest, request: Request, __: int = Depends(get_current_user_id)) -> Response:
+    return await forward_request(request, _identity_url(), "/api/v1/profile/me/experience")
 
 
 @router.post("/me/education")
