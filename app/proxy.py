@@ -5,6 +5,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.responses import Response
 
 from app.config import get_settings
+from app.observability import outbound_headers
 
 
 _HOP_BY_HOP_HEADERS = {
@@ -39,6 +40,7 @@ async def forward_request(
     }
     if extra_headers:
         headers.update(extra_headers)
+    headers = outbound_headers(headers)
     headers["X-Internal-Api-Key"] = get_settings().internal_api_key
     # Render can compress calls that traverse its public edge. Requesting the
     # identity encoding prevents a compressed body from being relayed as JSON.

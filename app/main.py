@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.observability import install_observability
 from app.routes import auth, certificates, gap_reports, interview_sessions, jobs, learning_paths, profile
 
 
@@ -35,6 +36,8 @@ app.include_router(gap_reports.router)
 app.include_router(learning_paths.router)
 app.include_router(certificates.router)
 app.include_router(interview_sessions.router)
+
+install_observability(app, "api-gateway")
 
 
 @app.get("/health", tags=["Health"])
