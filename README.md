@@ -1,6 +1,8 @@
-# PathBridge API Gateway — guía para Frontend
+# PathBridge API Gateway — guía de integración para Frontend
 
-El API Gateway es el único punto de entrada público de PathBridge. El frontend no debe invocar los microservicios directamente ni enviar encabezados internos: el Gateway valida el JWT y reenvía cada solicitud al servicio correspondiente.
+El API Gateway es el único punto de entrada público de PathBridge. El frontend no debe invocar los microservicios directamente ni enviar encabezados internos: el Gateway valida el JWT, obtiene la identidad del token y reenvía cada solicitud al servicio correspondiente.
+
+Esta guía describe el contrato que debe consumir el frontend. Los servicios internos, Redis y RabbitMQ no son APIs públicas ni requieren integración desde el navegador.
 
 ## Base URL, autenticación y CORS
 
@@ -10,14 +12,31 @@ El API Gateway es el único punto de entrada público de PathBridge. El frontend
 | Swagger | `http://localhost:8080/docs` |
 | Health check | `GET /health` |
 
+En despliegue usar la URL pública entregada por el equipo de infraestructura. No codificar `localhost` ni las URLs de los microservicios en el frontend.
+
 - Las rutas protegidas requieren `Authorization: Bearer <access_token>`.
 - El token se obtiene en registro o login. Ante `401`, limpiar la sesión y llevar al usuario a login.
+- La autenticación actual usa el encabezado `Authorization`, no cookies de sesión. El frontend debe adjuntar el token en cada ruta protegida.
 - No enviar `X-User-Id` ni `X-Internal-Api-Key`: son encabezados internos del Gateway.
+- El Gateway añade `X-User-Id` e `X-Internal-Api-Key` internamente; cualquier valor enviado por el navegador es descartado.
+- Cada respuesta incluye `X-Correlation-ID` (UUID). El frontend puede enviar un UUID propio con ese mismo encabezado para seguir una operación en los logs; si no lo envía, el Gateway genera uno.
 - Usar `application/json` para los requests JSON. La carga de certificados usa `multipart/form-data`.
 - Las marcas de tiempo se devuelven en ISO 8601. Un `204 No Content` no contiene JSON.
 - Para desarrollo web, agregar el origen del frontend a `CORS_ORIGINS`, por ejemplo: `http://localhost:3000,http://localhost:5173,http://localhost:8080`.
 
-### Errores comunes
+### Estado de las capacidades relevantes para frontend
+
+| Capacidad | Qué debe hacer el frontend |
+| --- | --- |
+| Redis | Transparente. Puede acelerar búsquedas y recomendaciones; no cambia rutas ni contratos. |
+| Circuit breaker de Jooble y YouTube | Manejar los estados de indisponibilidad descritos abajo y ofrecer reintento. |
+| RabbitMQ | Transparente. Al crear un reporte Gap, un worker puede precalentar recomendaciones, pero **no crea una ruta automáticamente** ni emite actualizaciones al navegador. |
+| WebSockets/audio | No disponibles actualmente. Usar las rutas HTTP documentadas. |
+| TLS | La URL productiva debe consumirse por HTTPS cuando infraestructura lo habilite. |
+
+La secuencia sigue siendo explícita: el usuario genera su reporte Gap y luego, cuando decida, solicita o consulta su ruta de aprendizaje.
+
+### Errores y trazabilidad
 
 | Código | Significado |
 | --- | --- |
@@ -26,16 +45,57 @@ El API Gateway es el único punto de entrada público de PathBridge. El frontend
 | `404` | Recurso no encontrado o no pertenece al usuario. |
 | `409` | Conflicto, por ejemplo email existente. |
 | `422` | Error de validación de body, query o archivo. |
-| `502` | Un microservicio no está disponible. Permitir reintento. |
-| `503` | Proveedor externo o IA temporalmente no disponible. |
+| `502` | El Gateway no pudo comunicarse con un microservicio. Permitir reintento con espera. |
+| `503` | Un proveedor externo o IA está temporalmente no disponible. Permitir reintento. |
+| `500` | Error inesperado. Mostrar un mensaje genérico y conservar el `X-Correlation-ID` para soporte. |
 
-Los errores tienen normalmente esta forma:
+Los errores del Gateway y de los servicios usan RFC 7807 con `Content-Type: application/problem+json`:
 
 ```json
-{ "detail": "Descripción del error" }
+{
+  "type": "urn:pathbridge:problem:http-401",
+  "title": "Unauthorized",
+  "status": 401,
+  "detail": "Token de autenticación inválido.",
+  "instance": "/api/v1/profile/me",
+  "correlation_id": "c61ac405-24ed-4a67-a272-efa2e6720d03"
+}
 ```
 
-Un `422` puede devolver `detail` como un arreglo de errores por campo.
+Un `422` también incluye `errors`, con errores de validación por campo. No asumir que `detail` es un arreglo: mostrar `detail` como mensaje general y usar `errors` para marcar campos.
+
+```json
+{
+  "type": "urn:pathbridge:problem:validation",
+  "title": "Validation failed",
+  "status": 422,
+  "detail": "The request could not be validated.",
+  "instance": "/api/v1/jobs",
+  "correlation_id": "c61ac405-24ed-4a67-a272-efa2e6720d03",
+  "errors": [{ "loc": ["query", "keywords"], "msg": "Field required" }]
+}
+```
+
+Ejemplo de cliente HTTP que respeta `204` y errores estandarizados:
+
+```ts
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T | undefined> {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      Accept: "application/json",
+      ...init.headers
+    }
+  });
+
+  if (response.status === 204) return undefined;
+  const body = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    throw { status: response.status, problem: body, correlationId: response.headers.get("X-Correlation-ID") };
+  }
+  return body as T;
+}
+```
 
 ---
 
@@ -251,6 +311,8 @@ Ejemplo: `GET /api/v1/jobs?keywords=python&location=Lima&page=1&page_size=10&rad
 
 Si Jooble no está disponible, responde `200` con `items: []` y `provider_status: "unavailable"`. El frontend debe permitir reintento y no tratarlo como cero resultados definitivos.
 
+Las búsquedas exitosas pueden servirse desde caché durante aproximadamente 10 minutos para la misma combinación de filtros. No hay un campo adicional en la respuesta para distinguir caché de proveedor: renderizar el contrato normal. Si Jooble falla tres veces consecutivas, el circuit breaker evita nuevas llamadas durante unos 30 segundos y se mantiene `provider_status: "unavailable"`; no hacer reintentos automáticos agresivos.
+
 ### Detalle y favoritos
 
 | Operación | Ruta | Éxito |
@@ -301,6 +363,8 @@ Las rutas son protegidas. Antes de generar un reporte debe existir el perfil y e
 
 `analysis_engine` puede ser `groq_llm`, `rule_based` o `rule_based_fallback`; no asumir que el LLM está activo para poder mostrar el reporte.
 
+Al completarse el `POST /api/v1/gap-reports`, Gap Analysis puede publicar internamente el evento `gap_report.generated`. RabbitMQ y el worker no cambian esta respuesta, no requieren polling y no crean rutas de aprendizaje por sí solos. El usuario conserva el control y debe invocar `POST /api/v1/learning-paths` cuando quiera generar su ruta.
+
 ---
 
 ## 4. Rutas de aprendizaje y certificados
@@ -345,6 +409,8 @@ Todas las rutas son protegidas. Una ruta de aprendizaje se genera a partir de un
 ```
 
 El endpoint de progreso devuelve `learning_path_id`, `status`, `progress_percentage`, `total_items` y `watched_items`.
+
+La generación de rutas consulta YouTube para proponer cursos. Los resultados pueden estar precargados en Redis tras el reporte Gap; esto es transparente para la UI. Si YouTube falla repetidamente, el circuit breaker puede responder `503` de forma inmediata mientras se recupera. Mostrar una opción de reintento y conservar el reporte Gap disponible; no eliminar ni invalidar la ruta existente del usuario.
 
 ### Certificados
 
@@ -456,6 +522,14 @@ Registro / login
   → marcar videos vistos / cargar certificados
   → iniciar y finalizar entrevista
 ```
+
+## Comportamientos que el frontend no debe asumir
+
+- No hay WebSockets, Server-Sent Events ni notificaciones push. Para ver cambios, volver a consultar los endpoints HTTP cuando la interacción del usuario lo requiera.
+- RabbitMQ no es accesible desde el navegador y no sustituye las rutas REST.
+- Redis no es una fuente de datos ni debe aparecer en la interfaz como estado de negocio.
+- Un `200` con `provider_status: "unavailable"` no equivale a una búsqueda sin resultados.
+- Las rutas bajo `/api/v1/internal/*`, los nombres de contenedores y las credenciales de infraestructura no forman parte del contrato frontend.
 
 ## Rutas internas
 
